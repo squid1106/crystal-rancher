@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "sheets": {
+    "original-bestiary": {
+      "src": "/assets/monsters/original-bestiary.png",
+      "columns": 4,
+      "rows": 3,
+      "cellOrder": ["mosswolf", "rootkin", "bramblehorn", "cogling", "trailbeak", "glimmer", "ember-salamander", "cave-slime", "shy-mushroom", "stone-shell", "lantern-moth", "river-serpent"],
+      "license": "Original AI-generated project artwork; no third-party game assets"
+    }
+  }
+}
