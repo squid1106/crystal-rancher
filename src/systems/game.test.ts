@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { addResource, advanceDay, assignJob, beginExpedition, canRecruit, chooseStarter, createNewGame, deserializeSave, expeditionCombatAction, feedMonster, gatherNode, getRecoveryDuration, groomMonster, harvestCrop, inspectGarden, migrateSave, moveExpedition, openExpeditionPrep, plantCrop, recruitAdventurer, resolveBattleTurn, returnFromExpedition, selectExpeditionParty, serializeSave, speakWithVisitor, spendResource, talkToResident, tendCrop, trainMonster } from './game'
+import { addResource, advanceDay, assignJob, beginExpedition, canRecruit, chooseStarter, createNewGame, deserializeSave, expeditionCombatAction, feedMonster, gatherNode, getRecoveryDuration, getTamingChance, groomMonster, harvestCrop, inspectGarden, migrateSave, moveExpedition, openExpeditionPrep, plantCrop, recruitAdventurer, resolveBattleTurn, returnFromExpedition, selectExpeditionParty, serializeSave, speakWithVisitor, spendResource, talkToResident, tendCrop, trainMonster } from './game'
 import type { GameSave } from '../types'
 
 const ranchGame = (): GameSave => ({ ...chooseStarter(createNewGame(), 'sprigbud', 'Fern'), phase: 'ranch', battle: null })
@@ -148,6 +148,26 @@ describe('playable ranch day simulation', () => {
     const hp = save.roster[0].currentHp; save = expeditionCombatAction(save, 'encourage'); expect(save.expedition!.enemyTrust).toBeGreaterThan(10); expect(save.roster[0].currentHp).toBeLessThan(hp)
     save = expeditionCombatAction(save, 'mira-cure'); expect(save.roster[0].currentHp).toBeGreaterThan(0)
     const attempts = save.expedition!.tamingAttempts; save = expeditionCombatAction(save, 'tame'); expect(save.expedition!.tamingAttempts).toBe(attempts + 1)
+  })
+
+  it('explains a failed food offer in the visible encounter log', () => {
+    let save: GameSave = { ...ranchGame(), resources: { ...ranchGame().resources, food: 0 }, recruitedAdventurers: ['mira-white-mage'] }
+    save = openExpeditionPrep(save); save = selectExpeditionParty(save, save.roster[0].uniqueId, 'mira-white-mage'); save = beginExpedition(save, 'briarglen-forest'); save = moveExpedition(save, 1); save = moveExpedition(save, 1)
+    const acted = expeditionCombatAction(save, 'offer-food')
+    expect(acted.expedition!.log.at(-1)).toContain('inventory has 0 food')
+    expect(acted.roster[0].currentHp).toBe(save.roster[0].currentHp)
+  })
+
+  it('caps taming below certainty and allows a failed attempt followed by retaliation', () => {
+    let save: GameSave = { ...ranchGame(), recruitedAdventurers: ['mira-white-mage'] }
+    save = openExpeditionPrep(save); save = selectExpeditionParty(save, save.roster[0].uniqueId, 'mira-white-mage'); save = beginExpedition(save, 'briarglen-forest'); save = moveExpedition(save, 1); save = moveExpedition(save, 1)
+    save = { ...save, expedition: { ...save.expedition!, enemyTrust: 100, enemyFear: 0, enemyHp: 1 } }
+    expect(getTamingChance(save)).toBeLessThan(100)
+    vi.spyOn(Math, 'random').mockReturnValue(.99)
+    const hp = save.roster[0].currentHp; const acted = expeditionCombatAction(save, 'tame')
+    expect(acted.expedition!.enemySpeciesId).not.toBeNull()
+    expect(acted.roster[0].currentHp).toBeLessThan(hp)
+    expect(acted.expedition!.log.some((line) => line.includes('attempt fails'))).toBe(true)
   })
 
   it('migrates v2 monster care and expedition fields without resetting progress', () => {

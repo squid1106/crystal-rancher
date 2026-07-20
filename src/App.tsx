@@ -14,10 +14,11 @@ import { RanchScene } from './components/RanchScene'
 function Frame({ children }: { children: React.ReactNode }) { return <main className="game-shell"><div className="game-frame">{children}</div></main> }
 
 function ActionJournal({ messages, compact = false }: { messages: string[]; compact?: boolean }) {
+  const [open, setOpen] = useState(true)
   const recent = messages.slice(compact ? -3 : -5).reverse()
-  return <aside className={`action-journal${compact ? ' compact' : ''}`} aria-live="polite" aria-label="Recent action results">
-    <div className="action-journal-heading"><span aria-hidden="true">✦</span><div><small>ACTION COMPLETE</small><strong>What just happened</strong></div></div>
-    <ol>{recent.map((message, index) => <li className={index === 0 ? 'latest' : ''} key={`${message}-${index}`}><span>{index === 0 ? 'NOW' : `${index + 1}`}</span><p>{message}</p></li>)}</ol>
+  return <aside className={`action-journal${compact ? ' compact' : ''}${open ? '' : ' collapsed'}`} aria-live="polite" aria-label="Recent action results">
+    <button className="action-journal-heading" onClick={() => setOpen((value) => !value)} aria-expanded={open}><span aria-hidden="true">✦</span><div><small>EVENT LOG</small><strong>{open ? 'What just happened' : recent[0] ?? 'No recent actions'}</strong></div><b>{open ? 'Hide −' : 'Recall +'}</b></button>
+    {open && <ol>{recent.map((message, index) => <li className={index === 0 ? 'latest' : ''} key={`${message}-${index}`}><span>{index === 0 ? 'NOW' : `${index + 1}`}</span><p>{message}</p></li>)}</ol>}
   </aside>
 }
 
@@ -131,7 +132,7 @@ function Expedition() {
 function ExpeditionCombat() {
   const save = useGameStore((state) => state.save)!; const act = useGameStore((state) => state.expeditionAction); const e = save.expedition!; const enemy = getSpecies(e.enemySpeciesId!)!; const companion = save.roster.find((monster) => monster.uniqueId === e.companionId)!; const species = getSpecies(companion.speciesId)!; const likelihood = getTamingLikelihood(save)
   const actions: { id: ExpeditionAction; label: string; help: string; disabled?: boolean }[] = [{id:'monster-attack',label:'Attack',help:'Reliable damage; raises fear.'},{id:'monster-ability',label:species.abilities[0].name,help:species.abilities[0].description},{id:'defend',label:'Defend',help:'Reduce the next attack.'},{id:'encourage',label:'Encourage',help:'Raise trust and calm fear.'},{id:'offer-food',label:'Offer Food',help:'Use preferred food to build trust.'},{id:'tame',label:`Attempt Tame · ${likelihood}`,help:'Invite the creature to join.'},{id:'mira-cure',label:'Mira: Cure',help:'Restore 7 companion HP.',disabled:!e.adventurerId},{id:'flee',label:'Flee',help:'Return to forest exploration.'}]
-  return <Frame><section className="wild-battle"><header><p className="eyebrow">WILD ENCOUNTER</p><h2>{enemy.name}</h2></header><div className="wild-combatants"><div><MonsterPortrait species={species}/><h3>{companion.nickname ?? species.name}</h3><p>HP {companion.currentHp}/{species.baseStats.maxHp}</p></div><span>VS</span><div><MonsterPortrait species={enemy}/><h3>Wild {enemy.name}</h3><p>HP {e.enemyHp}/{e.enemyMaxHp}</p><small>Trust {e.enemyTrust} · Fear {e.enemyFear} · Hunger {e.enemyHunger}</small></div></div><div className="wild-command-grid">{actions.map((action) => <button key={action.id} onClick={() => act(action.id)} disabled={action.disabled}><strong>{action.label}</strong><small>{action.help}</small></button>)}</div><div className="combat-story">{e.log.slice(-4).map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</div></section></Frame>
+  return <Frame><section className="wild-battle"><header><p className="eyebrow">WILD ENCOUNTER</p><h2>{enemy.name}</h2></header><div className="wild-combatants"><div><MonsterPortrait species={species}/><h3>{companion.nickname ?? species.name}</h3><p>HP {companion.currentHp}/{species.baseStats.maxHp}</p></div><span>VS</span><div><MonsterPortrait species={enemy}/><h3>Wild {enemy.name}</h3><p>HP {e.enemyHp}/{e.enemyMaxHp}</p><small>Trust {e.enemyTrust} · Fear {e.enemyFear} · Hunger {e.enemyHunger}</small></div></div><div className="wild-command-grid">{actions.map((action) => <button key={action.id} onClick={() => act(action.id)} disabled={action.disabled}><strong>{action.label}</strong><small>{action.help}</small></button>)}</div><ActionJournal messages={e.log} compact /></section></Frame>
 }
 
 function ExpeditionSummaryScreen() {

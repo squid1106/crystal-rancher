@@ -235,24 +235,34 @@ export const moveExpedition = (save: GameSave, direction: 1 | -1): GameSave => {
 }
 
 export type ExpeditionAction = 'monster-attack' | 'monster-ability' | 'defend' | 'mira-cure' | 'encourage' | 'offer-food' | 'tame' | 'flee'
+export const getTamingChance = (save: GameSave): number => {
+  const enemySpeciesId = save.expedition?.enemySpeciesId
+  if (!save.expedition || !enemySpeciesId) return 0
+  const e = save.expedition; const species = getSpecies(enemySpeciesId)!
+  const hpAdvantage = (1 - e.enemyHp / e.enemyMaxHp) * 25
+  const rawChance = 8 + e.enemyTrust * .45 + hpAdvantage - e.enemyFear * .25 - (species.tamingDifficulty ?? 40) * .35
+  return Math.max(3, Math.min(85, Math.round(rawChance)))
+}
 export const expeditionCombatAction = (save: GameSave, action: ExpeditionAction): GameSave => {
   if (!save.expedition?.enemySpeciesId) return save; const enemyId = save.expedition.enemySpeciesId; const expedition = { ...save.expedition, log: [...save.expedition.log] }; const companion = save.roster.find((monster) => monster.uniqueId === expedition.companionId)!; const companionSpecies = getSpecies(companion.speciesId)!; const enemy = getSpecies(enemyId)!; let roster = [...save.roster]
   if (action === 'monster-attack' || action === 'monster-ability') { const damage = action === 'monster-ability' ? companionSpecies.abilities[0].power : Math.max(2, companionSpecies.baseStats.attack - 2); expedition.enemyHp = Math.max(0, expedition.enemyHp - damage); expedition.enemyFear += 8; expedition.log.push(`${companionSpecies.name} deals ${damage} damage.`) }
   if (action === 'defend') { expedition.monsterDefending = true; expedition.log.push(`${companionSpecies.name} defends.`) }
   if (action === 'encourage') { expedition.enemyTrust += 18; expedition.enemyFear = Math.max(0, expedition.enemyFear - 8); expedition.log.push(`Your calm voice earns a little trust.`) }
-  if (action === 'offer-food') { const preferred = enemy.foodPreferences?.[0] ?? 'food'; const paid = spendResource({ ...save, roster }, preferred, 1); if (!paid) return feedback(save, `You need 1 ${preferred}.`); roster = paid.roster; expedition.enemyTrust += 25; expedition.enemyHunger = Math.max(0, expedition.enemyHunger - 35); expedition.log.push(`${enemy.name} eagerly accepts the food.`); save = paid }
+  if (action === 'offer-food') { const preferred = enemy.foodPreferences?.[0] ?? 'food'; const paid = spendResource({ ...save, roster }, preferred, 1); if (!paid) { const message = `You cannot offer food: the ranch inventory has 0 ${preferred}. Gather or bring at least 1 ${preferred} first.`; expedition.log.push(message); return feedback({ ...save, expedition }, message) } roster = paid.roster; expedition.enemyTrust = Math.min(100, expedition.enemyTrust + 25); expedition.enemyHunger = Math.max(0, expedition.enemyHunger - 35); expedition.log.push(`${enemy.name} eagerly accepts 1 ${preferred}. Trust rises and hunger falls.`); save = paid }
   if (action === 'mira-cure' && expedition.adventurerId) { roster = roster.map((monster) => monster.uniqueId === companion.uniqueId ? { ...monster, currentHp: Math.min(companionSpecies.baseStats.maxHp, monster.currentHp + 7) } : monster); expedition.log.push('Mira casts Cure for 7 HP.') }
-  if (action === 'tame') { expedition.tamingAttempts += 1; const score = expedition.enemyTrust + (100 - expedition.enemyFear) * .25 + (100 - expedition.enemyHp / expedition.enemyMaxHp * 100) * .25 - (enemy.tamingDifficulty ?? 40); const success = score >= 25; if (success) { const tamed = createMonster(enemy.id); expedition.tamedMonsterId = tamed.uniqueId; expedition.enemySpeciesId = null; roster = [...roster, tamed]; expedition.log.push(`${enemy.name} chooses to join the sanctuary!`); return feedback({ ...save, roster, phase: 'expedition', currentObjective: save.currentObjective === 'attempt-tame' ? 'return-ranch' : save.currentObjective, expedition }, `${enemy.name} was successfully tamed.`) } expedition.log.push('The creature is not ready to trust you yet.') }
+  if (action === 'tame') { expedition.tamingAttempts += 1; const chance = getTamingChance({ ...save, expedition }); const success = Math.random() * 100 < chance; if (success) { const tamed = createMonster(enemy.id); expedition.tamedMonsterId = tamed.uniqueId; expedition.enemySpeciesId = null; roster = [...roster, tamed]; expedition.log.push(`${enemy.name} chooses to join the sanctuary! The attempt succeeded, but taming was never guaranteed.`); return feedback({ ...save, roster, phase: 'expedition', currentObjective: save.currentObjective === 'attempt-tame' ? 'return-ranch' : save.currentObjective, expedition }, `${enemy.name} was successfully tamed.`) } expedition.enemyFear = Math.min(100, expedition.enemyFear + 6); expedition.log.push(`The taming attempt fails. ${enemy.name} resists and becomes more frightened.`) }
   if (action === 'flee') return { ...save, roster, phase: 'expedition', expedition: { ...expedition, enemySpeciesId: null } }
   if (expedition.enemyHp === 0) { expedition.battlesWon += 1; expedition.enemySpeciesId = null; roster = roster.map((monster) => monster.uniqueId === companion.uniqueId ? { ...monster, experience: monster.experience + 8, bond: Math.min(100, monster.bond + 1) } : monster); return feedback({ ...save, roster, phase: 'expedition', currentObjective: save.currentObjective === 'win-battle' ? 'attempt-tame' : save.currentObjective, expedition }, 'The wild monster retreats. Battle won!') }
-  const enemyDamage = Math.max(1, enemy.baseStats.attack - companionSpecies.baseStats.defense - (expedition.monsterDefending ? 3 : 0)); expedition.monsterDefending = false; roster = roster.map((monster) => monster.uniqueId === companion.uniqueId ? { ...monster, currentHp: Math.max(0, monster.currentHp - enemyDamage) } : monster); expedition.log.push(`${enemy.name} deals ${enemyDamage} damage.`)
+  const fleeChance = (expedition.enemyHp / expedition.enemyMaxHp <= .35 ? 30 : 0) + (expedition.enemyFear >= 70 ? 25 : 0)
+  if (fleeChance > 0 && Math.random() * 100 < fleeChance) { expedition.enemySpeciesId = null; expedition.log.push(`${enemy.name} panics and flees into the forest. The encounter is over.`); return feedback({ ...save, roster, phase: 'expedition', expedition }, `${enemy.name} fled before it could be tamed.`) }
+  const enemyDamage = Math.max(2, enemy.baseStats.attack - Math.floor(companionSpecies.baseStats.defense / 2) - (expedition.monsterDefending ? 4 : 0)); expedition.monsterDefending = false; roster = roster.map((monster) => monster.uniqueId === companion.uniqueId ? { ...monster, currentHp: Math.max(0, monster.currentHp - enemyDamage) } : monster); expedition.log.push(`${enemy.name} strikes back for ${enemyDamage} damage.`)
   const after = roster.find((monster) => monster.uniqueId === companion.uniqueId)!; if (after.currentHp === 0) return returnFromExpedition({ ...save, roster, expedition }, true)
   return { ...save, roster, expedition }
 }
 
 export const getTamingLikelihood = (save: GameSave): string => {
-  if (!save.expedition?.enemySpeciesId) return 'Unavailable'; const e = save.expedition; const species = getSpecies(save.expedition.enemySpeciesId)!; const score = e.enemyTrust + (100 - e.enemyFear) * .25 + (100 - e.enemyHp / e.enemyMaxHp * 100) * .25 - (species.tamingDifficulty ?? 40)
-  return score >= 45 ? 'Very Likely' : score >= 25 ? 'Likely' : score >= 5 ? 'Possible' : score >= -15 ? 'Unlikely' : 'Very Unlikely'
+  const chance = getTamingChance(save)
+  return chance >= 70 ? 'Very Likely' : chance >= 50 ? 'Likely' : chance >= 30 ? 'Possible' : chance >= 15 ? 'Unlikely' : 'Very Unlikely'
 }
 
 export const returnFromExpedition = (save: GameSave, defeated = false): GameSave => {
