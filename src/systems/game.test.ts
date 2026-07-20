@@ -141,6 +141,13 @@ describe('playable ranch day simulation', () => {
     save = returnFromExpedition(save); expect(save.resources.wood).toBe(woodBefore + 2); expect(save.phase).toBe('expedition-summary')
   })
 
+  it('triggers forest combat again on every new expedition', () => {
+    let save: GameSave = { ...ranchGame(), recruitedAdventurers: ['mira-white-mage'], completedEventIds: ['encounter-wolf-path'] }
+    save = openExpeditionPrep(save); save = selectExpeditionParty(save, save.roster[0].uniqueId, 'mira-white-mage'); save = beginExpedition(save, 'briarglen-forest'); save = moveExpedition(save, 1); save = moveExpedition(save, 1)
+    expect(save.phase).toBe('expedition-combat')
+    expect(save.expedition!.enemySpeciesId).not.toBeNull()
+  })
+
   it('supports combat, Mira Cure, and taming state changes', () => {
     let save: GameSave = { ...ranchGame(), recruitedAdventurers: ['mira-white-mage'], currentObjective: 'gather-resource' }
     save = openExpeditionPrep(save); save = selectExpeditionParty(save, save.roster[0].uniqueId, 'mira-white-mage'); save = beginExpedition(save, 'briarglen-forest'); save = gatherNode(save); save = moveExpedition(save, 1); save = moveExpedition(save, 1)

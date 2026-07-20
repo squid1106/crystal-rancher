@@ -217,7 +217,7 @@ export const selectExpeditionParty = (save: GameSave, companionId: string, adven
 
 export const beginExpedition = (save: GameSave, destinationId: string): GameSave => {
   if (!save.selectedCompanionId || !getDestination(destinationId) || save.timePeriod === 'evening' || save.timePeriod === 'spent') return feedback(save, 'Select an eligible companion before leaving.')
-  return feedback({ ...save, phase: 'expedition', timePeriod: 'spent', currentObjective: save.currentObjective === 'enter-forest' ? 'gather-resource' : save.currentObjective, expedition: { destinationId, companionId: save.selectedCompanionId, adventurerId: save.selectedAdventurerId, areaIndex: 0, temporaryResources: {}, gatheredNodeIds: [], battlesWon: 0, tamingAttempts: 0, tamedMonsterId: null, enemySpeciesId: null, enemyHp: 0, enemyMaxHp: 0, enemyTrust: 10, enemyFear: 20, enemyHunger: 60, monsterDefending: false, log: ['The party enters Briarglen Forest.'] } }, 'The expedition consumes the rest of the day.')
+  return feedback({ ...save, phase: 'expedition', timePeriod: 'spent', currentObjective: save.currentObjective === 'enter-forest' ? 'gather-resource' : save.currentObjective, expedition: { destinationId, companionId: save.selectedCompanionId, adventurerId: save.selectedAdventurerId, areaIndex: 0, temporaryResources: {}, gatheredNodeIds: [], encounteredAreaIds: [], battlesWon: 0, tamingAttempts: 0, tamedMonsterId: null, enemySpeciesId: null, enemyHp: 0, enemyMaxHp: 0, enemyTrust: 10, enemyFear: 20, enemyHunger: 60, monsterDefending: false, log: ['The party enters Briarglen Forest.'] } }, 'The expedition consumes the rest of the day.')
 }
 
 export const gatherNode = (save: GameSave): GameSave => {
@@ -230,7 +230,8 @@ export const gatherNode = (save: GameSave): GameSave => {
 export const moveExpedition = (save: GameSave, direction: 1 | -1): GameSave => {
   if (!save.expedition || save.phase !== 'expedition') return save; const destination = getDestination(save.expedition.destinationId)!; const areaIndex = Math.max(0, Math.min(destination.areas.length - 1, save.expedition.areaIndex + direction)); const area = destination.areas[areaIndex]
   let expedition = { ...save.expedition, areaIndex }
-  if (area.encounterSpeciesId && !save.completedEventIds.includes(`encounter-${area.id}`)) { const species = getSpecies(area.encounterSpeciesId)!; expedition = { ...expedition, enemySpeciesId: species.id, enemyHp: species.baseStats.maxHp, enemyMaxHp: species.baseStats.maxHp, enemyTrust: 10, enemyFear: 20, enemyHunger: 60, log: [...expedition.log, `A wild ${species.name} appears!`] }; return { ...save, phase: 'expedition-combat', completedEventIds: [...save.completedEventIds, `encounter-${area.id}`], expedition, discoveredSpecies: save.discoveredSpecies.includes(species.id) ? save.discoveredSpecies : [...save.discoveredSpecies, species.id] } }
+  const encounteredAreaIds = expedition.encounteredAreaIds ?? []
+  if (area.encounterSpeciesId && !encounteredAreaIds.includes(area.id)) { const species = getSpecies(area.encounterSpeciesId)!; expedition = { ...expedition, encounteredAreaIds: [...encounteredAreaIds, area.id], enemySpeciesId: species.id, enemyHp: species.baseStats.maxHp, enemyMaxHp: species.baseStats.maxHp, enemyTrust: 10, enemyFear: 20, enemyHunger: 60, log: [...expedition.log, `A wild ${species.name} appears!`] }; return { ...save, phase: 'expedition-combat', expedition, discoveredSpecies: save.discoveredSpecies.includes(species.id) ? save.discoveredSpecies : [...save.discoveredSpecies, species.id] } }
   return { ...save, expedition }
 }
 

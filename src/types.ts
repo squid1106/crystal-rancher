@@ -54,6 +54,7 @@ export interface ExpeditionState {
   areaIndex: number
   temporaryResources: Partial<Record<ResourceId, number>>
   gatheredNodeIds: string[]
+  encounteredAreaIds: string[]
   battlesWon: number
   tamingAttempts: number
   tamedMonsterId: string | null
