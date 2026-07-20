@@ -13,7 +13,7 @@ export const OLDEST_SAVE_KEY = 'ff-rancher-save-v1'
 
 const emptyAffinities = (): Record<AffinityId, number> => ({ combat: 0, crafting: 0, harvesting: 0, harmony: 0, exploration: 0, healing: 0 })
 const emptyPlot = () => ({ cropId: null, status: 'empty' as const, growthDays: 0, tendedThisCycle: false, needsTending: false })
-const feedback = (save: GameSave, ...messages: string[]): GameSave => ({ ...save, feedback: [...save.feedback, ...messages].slice(-5) })
+const feedback = (save: GameSave, ...messages: string[]): GameSave => ({ ...save, feedback: [...save.feedback, ...messages].slice(-8) })
 const nextPeriod: Record<TimePeriod, TimePeriod> = { morning: 'afternoon', afternoon: 'evening', evening: 'spent', spent: 'spent' }
 const periodName = (period: TimePeriod) => period === 'spent' ? 'Night' : `${period[0].toUpperCase()}${period.slice(1)}`
 
@@ -82,7 +82,7 @@ export const plantCrop = (save: GameSave, cropId: string): GameSave => {
   if (!crop || save.cropPlot.status !== 'empty' || save.timePeriod === 'spent') return feedback(save, 'The crop cannot be planted right now.')
   const paid = spendResource(save, crop.seedResource, crop.seedCost)
   if (!paid) return feedback(save, `You need ${crop.seedCost} Restorative Herb Seed.`)
-  let result = consumeTime({ ...paid, cropPlot: { cropId, status: 'planted', growthDays: 0, tendedThisCycle: false, needsTending: false }, currentObjective: save.currentObjective === 'plant-herbs' ? 'assign-assistant' : save.currentObjective }, `${crop.name} planted. The crop will mature in ${crop.baseGrowthDays} days.`)
+  let result = consumeTime({ ...paid, cropPlot: { cropId, status: 'planted', growthDays: 0, tendedThisCycle: false, needsTending: false }, currentObjective: save.currentObjective === 'plant-herbs' ? 'assign-assistant' : save.currentObjective }, `You planted ${crop.name}, spending ${crop.seedCost} Restorative Herb Seed. Growth is now 0/${crop.baseGrowthDays} days; the plot will need tending before harvest.`)
   result = grantAffinity(result, 'first-herb-plant')
   return queueRecruitment(result)
 }
@@ -94,12 +94,12 @@ export const assignJob = (save: GameSave, monsterId: string, jobId: string | nul
   const objective = jobId === 'herb-garden-assistant' && save.currentObjective === 'assign-assistant' ? 'tend-crop' : jobId && save.currentObjective === 'assign-new-monster' ? 'complete' : save.currentObjective
   const jobProgress = jobId ? { ...monster?.jobProgress, [jobId]: monster?.jobProgress[jobId] ?? { level: 1, experience: 0 } } : monster?.jobProgress
   const result = { ...save, roster: save.roster.map((item) => ({ ...item, assignedJob: item.uniqueId === monsterId ? jobId : item.assignedJob === jobId ? null : item.assignedJob, jobProgress: item.uniqueId === monsterId && jobProgress ? jobProgress : item.jobProgress })), currentObjective: objective as ObjectiveId }
-  return feedback(result, jobId ? `${displayName} is now the Herb Garden Assistant.` : `${displayName} is now unassigned.`)
+  return feedback(result, jobId ? `${displayName} was assigned as Herb Garden Assistant. Their matching affinity will improve the next completed harvest; assigning a job consumed no time.` : `${displayName} was removed from ranch work and is now available for care, training, or expeditions. Reassignment consumed no time.`)
 }
 
 export const tendCrop = (save: GameSave): GameSave => {
   if (save.timePeriod === 'spent' || !save.cropPlot.cropId || !save.cropPlot.needsTending || save.cropPlot.status === 'ready') return feedback(save, 'The crop does not need tending right now.')
-  const result = consumeTime({ ...save, cropPlot: { ...save.cropPlot, needsTending: false, tendedThisCycle: true, status: 'growing' }, currentObjective: save.currentObjective === 'tend-crop' ? 'harvest-crop' : save.currentObjective }, 'The crop has been carefully tended. Its full yield is protected.')
+  const result = consumeTime({ ...save, cropPlot: { ...save.cropPlot, needsTending: false, tendedThisCycle: true, status: 'growing' }, currentObjective: save.currentObjective === 'tend-crop' ? 'harvest-crop' : save.currentObjective }, 'You tended the Restorative Herbs. The crop no longer needs attention today and its full harvest yield is protected.')
   return queueRecruitment(grantAffinity(result, 'first-herb-tend'))
 }
 
@@ -179,28 +179,29 @@ export const feedMonster = (save: GameSave, monsterId: string): GameSave => {
   if (!monster || monster.satiety >= 100 || save.timePeriod === 'spent') return feedback(save, monster?.satiety === 100 ? 'That monster is already full.' : 'Feeding is unavailable.')
   const paid = spendResource(save, 'food', 1); if (!paid) return feedback(save, 'You need 1 Food.')
   const result = { ...paid, roster: paid.roster.map((item) => item.uniqueId === monsterId ? { ...item, satiety: Math.min(100, item.satiety + 35), bond: Math.min(100, item.bond + 2) } : item), currentObjective: save.currentObjective === 'care-returning' ? (save.roster.length > 1 ? 'assign-new-monster' : 'complete') : save.currentObjective }
-  return consumeTime(result, `${monster.nickname ?? getSpecies(monster.speciesId)!.name} ate a hearty meal. Bond increased.`)
+  return consumeTime(result, `${monster.nickname ?? getSpecies(monster.speciesId)!.name} ate a hearty meal. Food −1; fullness ${monster.satiety}% → ${Math.min(100, monster.satiety + 35)}%; bond ${monster.bond} → ${Math.min(100, monster.bond + 2)}.`)
 }
 
 export const groomMonster = (save: GameSave, monsterId: string): GameSave => {
   const monster = save.roster.find((item) => item.uniqueId === monsterId)
   if (!monster || monster.groomedDay === save.currentDay || save.timePeriod === 'spent') return feedback(save, 'Grooming is unavailable or already completed today.')
   const result = { ...save, roster: save.roster.map((item) => item.uniqueId === monsterId ? { ...item, bond: Math.min(100, item.bond + 4), groomedDay: save.currentDay } : item), currentObjective: save.currentObjective === 'care-returning' ? (save.roster.length > 1 ? 'assign-new-monster' : 'complete') : save.currentObjective }
-  return consumeTime(result, `${monster.nickname ?? getSpecies(monster.speciesId)!.name} looks refreshed. Bond increased.`)
+  return consumeTime(result, `${monster.nickname ?? getSpecies(monster.speciesId)!.name} was groomed and looks refreshed. Bond ${monster.bond} → ${Math.min(100, monster.bond + 4)}; grooming is now complete for Day ${save.currentDay}.`)
 }
 
 export const trainMonster = (save: GameSave, monsterId: string, kind: 'combat' | 'affinity'): GameSave => {
   const monster = save.roster.find((item) => item.uniqueId === monsterId); if (!monster || monster.trainedDay === save.currentDay || save.timePeriod === 'spent' || monster.recoveryDays > 0) return feedback(save, 'Training is unavailable or already completed today.')
   const species = getSpecies(monster.speciesId)!; let updated = { ...monster, experience: monster.experience + (kind === 'combat' ? 6 : 2), trainedDay: save.currentDay, trainingProgress: { ...monster.trainingProgress } }
   if (kind === 'affinity') { const affinity = species.affinities[0]; updated.trainingProgress[affinity.id] += 10 }
-  return consumeTime({ ...save, roster: save.roster.map((item) => item.uniqueId === monsterId ? updated : item) }, `${monster.nickname ?? species.name} completed ${kind} training and gained experience.`)
+  return consumeTime({ ...save, roster: save.roster.map((item) => item.uniqueId === monsterId ? updated : item) }, kind === 'combat' ? `${monster.nickname ?? species.name} completed Combat Training. Experience ${monster.experience} → ${updated.experience}; training is now complete for Day ${save.currentDay}.` : `${monster.nickname ?? species.name} completed Affinity Training. Experience ${monster.experience} → ${updated.experience}; ${species.affinities[0].id} training progress increased by 10 without exceeding the species cap.`)
 }
 
 export const treatMonster = (save: GameSave, monsterId: string): GameSave => {
   const monster = save.roster.find((item) => item.uniqueId === monsterId); if (!monster || save.timePeriod === 'spent') return save
   const species = getSpecies(monster.speciesId)!; if (monster.currentHp >= species.baseStats.maxHp && monster.recoveryDays === 0) return feedback(save, 'That monster does not need treatment.')
   const bonus = save.recruitedAdventurers.length ? 2 : 0
-  return consumeTime({ ...save, roster: save.roster.map((item) => item.uniqueId === monsterId ? { ...item, currentHp: Math.min(species.baseStats.maxHp, item.currentHp + 4 + bonus), recoveryDays: Math.max(0, item.recoveryDays - (bonus ? 2 : 1)) } : item) }, `${monster.nickname ?? species.name} received treatment${bonus ? ' with resident support' : ''}.`)
+  const healedHp = Math.min(species.baseStats.maxHp, monster.currentHp + 4 + bonus); const recoveryDays = Math.max(0, monster.recoveryDays - (bonus ? 2 : 1))
+  return consumeTime({ ...save, roster: save.roster.map((item) => item.uniqueId === monsterId ? { ...item, currentHp: healedHp, recoveryDays } : item) }, `${monster.nickname ?? species.name} received treatment${bonus ? ' with Mira’s resident bonus' : ''}. HP ${monster.currentHp} → ${healedHp}; recovery ${monster.recoveryDays} → ${recoveryDays} days.`)
 }
 
 export const openExpeditionPrep = (save: GameSave): GameSave => {
@@ -223,7 +224,7 @@ export const gatherNode = (save: GameSave): GameSave => {
   if (!save.expedition) return save; const destination = getDestination(save.expedition.destinationId)!; const area = destination.areas[save.expedition.areaIndex]; const node = area.node
   if (!node || save.expedition.gatheredNodeIds.includes(node.id)) return feedback(save, 'Nothing more can be gathered here this expedition.')
   const temporaryResources = { ...save.expedition.temporaryResources, [node.resource]: (save.expedition.temporaryResources[node.resource] ?? 0) + node.amount }
-  return feedback({ ...save, currentObjective: save.currentObjective === 'gather-resource' ? 'win-battle' : save.currentObjective, expedition: { ...save.expedition, temporaryResources, gatheredNodeIds: [...save.expedition.gatheredNodeIds, node.id] } }, `Gathered ${node.amount} ${node.resource}.`)
+  return feedback({ ...save, currentObjective: save.currentObjective === 'gather-resource' ? 'win-battle' : save.currentObjective, expedition: { ...save.expedition, temporaryResources, gatheredNodeIds: [...save.expedition.gatheredNodeIds, node.id] } }, `You gathered ${node.amount} ${node.resource}. The expedition pack now holds ${temporaryResources[node.resource]} ${node.resource}; it will transfer to ranch storage after a safe return.`)
 }
 
 export const moveExpedition = (save: GameSave, direction: 1 | -1): GameSave => {

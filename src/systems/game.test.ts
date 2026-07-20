@@ -20,6 +20,15 @@ describe('playable ranch day simulation', () => {
     expect(save.feedback.some((message) => message.includes('Afternoon'))).toBe(true)
   })
 
+  it('reports exact visible consequences for monster care actions', () => {
+    const save = ranchGame(); const monster = save.roster[0]
+    const fed = feedMonster(save, monster.uniqueId)
+    expect(fed.feedback.at(-2)).toContain('Food −1')
+    expect(fed.feedback.at(-2)).toContain(`fullness ${monster.satiety}%`)
+    expect(fed.feedback.at(-2)).toContain(`bond ${monster.bond}`)
+    expect(fed.feedback.at(-1)).toContain('Afternoon')
+  })
+
   it('resets time to Morning and advances the day', () => {
     const save = advanceDay(plantedGame())
     expect(save.currentDay).toBe(2)
