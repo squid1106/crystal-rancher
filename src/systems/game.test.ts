@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { addResource, advanceDay, assignJob, beginExpedition, canRecruit, chooseStarter, createNewGame, deserializeSave, expeditionCombatAction, feedMonster, gatherNode, getRecoveryDuration, getTamingChance, groomMonster, harvestCrop, inspectGarden, migrateSave, moveExpedition, openExpeditionPrep, plantCrop, recruitAdventurer, resolveBattleTurn, returnFromExpedition, selectExpeditionParty, serializeSave, speakWithVisitor, spendResource, talkToResident, tendCrop, trainMonster } from './game'
+import { addResource, advanceDay, assignJob, beginExpedition, beginTutorialBattle, canRecruit, chooseStarter, createNewGame, deserializeSave, expeditionCombatAction, feedMonster, gatherNode, getRecoveryDuration, getTamingChance, groomMonster, harvestCrop, inspectGarden, migrateSave, moveExpedition, openExpeditionPrep, plantCrop, recruitAdventurer, resolveBattleTurn, returnFromExpedition, selectExpeditionParty, serializeSave, speakWithVisitor, spendResource, talkToResident, tendCrop, trainMonster } from './game'
 import type { GameSave } from '../types'
 
 const ranchGame = (): GameSave => ({ ...chooseStarter(createNewGame(), 'sprigbud', 'Fern'), phase: 'ranch', battle: null })
@@ -67,7 +67,7 @@ describe('playable ranch day simulation', () => {
 
   it('applies the matching-affinity assistant yield bonus generically', () => {
     let save = plantedGame(); save = assignJob(save, save.roster[0].uniqueId, 'herb-garden-assistant'); save = advanceDay(save); save = tendCrop(save); save = advanceDay(save); save = harvestCrop(save)
-    expect(save.resources.herbs).toBe(4)
+    expect(save.resources.herbs).toBe(7)
     expect(save.yieldRemainder).toBeCloseTo(.05)
   })
 
@@ -112,11 +112,20 @@ describe('playable ranch day simulation', () => {
     save = assignJob(save, save.roster[0].uniqueId, 'herb-garden-assistant'); expect(save.currentObjective).toBe('tend-crop')
   })
 
-  it('keeps the existing tutorial battle behavior', () => {
-    const save = chooseStarter(createNewGame(), 'bramblehorn')
-    const attacked = resolveBattleTurn(save, 'attack'); const defended = resolveBattleTurn(save, 'defend')
+  it('starts the road encounter after bonding and supports physical and magical commands', () => {
+    const journey = chooseStarter(createNewGame(), 'bramblehorn'); const save = beginTutorialBattle(journey)
+    expect(journey.phase).toBe('journey'); expect(save.phase).toBe('battle')
+    const attacked = resolveBattleTurn(save, 'attack'); const cast = resolveBattleTurn(save, 'magic')
     expect(attacked.battle!.enemyHp).toBeLessThan(save.battle!.enemyHp)
-    expect(defended.battle!.playerHp).toBeGreaterThan(attacked.battle!.playerHp)
+    expect(cast.battle!.log.some((line) => line.includes('Stone Spark'))).toBe(true)
+  })
+
+  it('uses limited medicinal herbs and a single Phoenix Pinion', () => {
+    let save = beginTutorialBattle(chooseStarter(createNewGame(), 'trailbeak'))
+    save = { ...save, battle: { ...save.battle!, playerHp: 1 } }; const healed = resolveBattleTurn(save, 'item')
+    expect(healed.resources.herbs).toBe(2); expect(healed.battle!.playerHp).toBeGreaterThan(1)
+    save = { ...save, battle: { ...save.battle!, playerHp: 0 } }; const revived = resolveBattleTurn(save, 'item')
+    expect(revived.battle!.playerHp).toBeGreaterThan(0); expect(revived.completedEventIds).toContain('phoenix-pinion-used')
   })
 
   it('feeds, grooms, and trains with costs and daily limits', () => {

@@ -19,7 +19,7 @@ const periodName = (period: TimePeriod) => period === 'spent' ? 'Night' : `${per
 
 export const createNewGame = (): GameSave => ({
   schemaVersion: 3, phase: 'intro', currentDay: 1, timePeriod: 'morning', roster: [],
-  resources: { food: 8, wood: 4, stone: 2, herbSeeds: 2, herbs: 0 }, ranchAffinities: emptyAffinities(),
+  resources: { food: 8, wood: 4, stone: 2, herbSeeds: 2, herbs: 3 }, ranchAffinities: emptyAffinities(),
   buildings: ['cottage', 'herb-garden'], recruitedAdventurers: [], discoveredSpecies: MONSTERS.map((monster) => monster.id),
   battle: null, tutorialComplete: false, cropPlot: emptyPlot(), completedEventIds: [], affinityLog: [], queuedEvents: [], visitorIds: [],
   currentObjective: 'inspect-garden', feedback: ['Welcome to Briarglen Ranch. Inspect the herb garden to begin.'], yieldRemainder: 0,
@@ -35,21 +35,29 @@ export const createMonster = (speciesId: string, nickname?: string): MonsterInst
 export const chooseStarter = (save: GameSave, speciesId: string, nickname?: string): GameSave => {
   const monster = createMonster(speciesId, nickname); const species = getSpecies(speciesId)!
   const affinities = { ...save.ranchAffinities }; species.affinities.forEach(({ id, current }) => { affinities[id] += current })
-  return { ...save, roster: [monster], ranchAffinities: affinities, phase: 'battle', battle: { playerHp: monster.currentHp, enemyHp: 18, enemyMaxHp: 18, enemyIndex: 0, defending: false, log: [`${monster.nickname ?? species.name} steps forward!`] } }
+  return feedback({ ...save, roster: [monster], ranchAffinities: affinities, phase: 'journey', battle: null }, `${monster.nickname ?? species.name} accepts your bond. Together, you set out for Briarglen Ranch.`)
+}
+
+export const beginTutorialBattle = (save: GameSave): GameSave => {
+  if (save.phase !== 'journey' || !save.roster[0]) return save
+  const monster = save.roster[0]; return { ...save, phase: 'battle', battle: { playerHp: monster.currentHp, enemyHp: 14, enemyMaxHp: 14, enemyIndex: 0, log: ['Two territorial creatures block the ranch road!', `${monster.nickname ?? getSpecies(monster.speciesId)!.name} steps forward to protect you.`] } }
 }
 
 export const resolveBattleTurn = (save: GameSave, action: BattleAction): GameSave => {
   if (!save.battle || !save.roster[0]) return save
-  const species = getSpecies(save.roster[0].speciesId)!; const battle = { ...save.battle, log: [...save.battle.log] }; let damage = 0
-  if (action === 'attack') damage = Math.max(2, species.baseStats.attack - 2)
-  if (action === 'ability') damage = species.abilities[0].power
-  if (action === 'defend') battle.defending = true
-  battle.enemyHp = Math.max(0, battle.enemyHp - damage); battle.log.push(action === 'defend' ? `${species.name} braces for the next strike.` : `${species.name} deals ${damage} damage!`)
-  if (battle.enemyHp === 0) { battle.enemyIndex += 1; if (battle.enemyIndex >= 2) return feedback({ ...save, phase: 'ranch', battle: null }, 'The friendly trial is complete. Welcome home!'); battle.enemyHp = battle.enemyMaxHp; battle.log.push('Another friendly rival bounds into the clearing!') }
-  const incoming = battle.enemyHp > 0 ? Math.max(1, 5 - (battle.defending ? 3 : 0)) : 0; battle.playerHp = Math.max(0, battle.playerHp - incoming)
-  if (incoming) battle.log.push(`The rival answers for ${incoming} damage.`); battle.defending = false
-  if (battle.playerHp === 0) return { ...feedback(save, `${species.name} needs time to recover.`), roster: save.roster.map((monster, index) => index === 0 ? { ...monster, currentHp: 0, recoveryDays: getRecoveryDuration(save, 2) } : monster), phase: 'ranch', battle: null }
-  return { ...save, battle }
+  const species = getSpecies(save.roster[0].speciesId)!; const battle = { ...save.battle, log: [...save.battle.log] }; let resources = { ...save.resources }; let damage = 0; let acted = true
+  if (action === 'attack') { damage = Math.max(2, species.baseStats.attack - 2); battle.log.push(`${species.name} attacks for ${damage} damage.`) }
+  if (action === 'skill') { damage = species.abilities[0].power; battle.log.push(`${species.name} uses ${species.abilities[0].name} for ${damage} damage.`) }
+  if (action === 'magic') { const spell = species.spells?.find((entry) => species.tier >= entry.minimumTier && save.roster[0].level >= entry.minimumLevel); if (!spell) { battle.log.push(`${species.name} has not learned any magic.`); acted = false } else if (spell.healing) { const before = battle.playerHp; battle.playerHp = Math.min(species.baseStats.maxHp, battle.playerHp + spell.power); battle.log.push(`${species.name} casts ${spell.name}. HP ${before} → ${battle.playerHp}.`) } else { damage = spell.power; battle.log.push(`${species.name} casts ${spell.name} for ${damage} ${spell.element} damage.`) } }
+  if (action === 'item') { if (battle.playerHp === 0 && save.completedEventIds.includes('phoenix-pinion-used')) { battle.log.push('The Phoenix Pinion has already been used.'); acted = false } else if (battle.playerHp === 0) { battle.playerHp = Math.ceil(species.baseStats.maxHp / 2); battle.log.push(`The Phoenix Pinion revives ${species.name} with ${battle.playerHp} HP.`); save = { ...save, completedEventIds: [...save.completedEventIds, 'phoenix-pinion-used'] } } else if (resources.herbs > 0) { resources.herbs -= 1; const before = battle.playerHp; battle.playerHp = Math.min(species.baseStats.maxHp, battle.playerHp + 10); battle.log.push(`You use a Medicinal Herb. Herbs ${save.resources.herbs} → ${resources.herbs}; HP ${before} → ${battle.playerHp}.`) } else { battle.log.push('Your pack contains no Medicinal Herbs.'); acted = false } }
+  if (action === 'flee') { battle.log.push('There is nowhere safe to run—the ranch road lies just beyond them.'); acted = false }
+  if (!acted) return { ...save, battle }
+  battle.enemyHp = Math.max(0, battle.enemyHp - damage)
+  if (battle.enemyHp === 0) { battle.enemyIndex += 1; if (battle.enemyIndex >= 2) return feedback({ ...save, resources, roster: save.roster.map((monster, index) => index === 0 ? { ...monster, currentHp: battle.playerHp } : monster), phase: 'ranch', battle: null }, 'The road is safe. You and your new partner arrive at Briarglen Ranch together.'); battle.enemyHp = battle.enemyMaxHp; battle.log.push('The second creature takes its companion’s place. One opponent remains!'); return { ...save, resources, battle } }
+  const incoming = Math.max(2, 6 - Math.floor(species.baseStats.defense / 2)); battle.playerHp = Math.max(0, battle.playerHp - incoming); battle.log.push(`The wild creature retaliates for ${incoming} damage.`)
+  if (battle.playerHp === 0) battle.log.push(save.completedEventIds.includes('phoenix-pinion-used') ? `${species.name} has fallen. With no Phoenix Pinion remaining, the Guild escorts you to the ranch.` : `${species.name} has fallen! Use Item now to spend your single Phoenix Pinion.`)
+  if (battle.playerHp === 0 && save.completedEventIds.includes('phoenix-pinion-used')) return { ...feedback(save, 'You survived the road, but your partner needs two days to recover.'), resources, roster: save.roster.map((monster, index) => index === 0 ? { ...monster, currentHp: 0, recoveryDays: getRecoveryDuration(save, 2) } : monster), phase: 'ranch', battle: null }
+  return { ...save, resources, battle }
 }
 
 export const spendResource = (save: GameSave, id: ResourceId, amount: number): GameSave | null => {

@@ -4,17 +4,17 @@ export const MONSTERS: MonsterSpecies[] = [
   {
     id: 'bramblehorn', name: 'Bramblehorn', description: 'A brave little forest guardian who never backs away from a challenge.', tier: 1, color: '#cf715d', silhouette: 'horn',
     baseStats: { maxHp: 28, attack: 7, defense: 4 }, affinities: [{ id: 'combat', current: 3, cap: 4 }],
-    abilities: [{ id: 'headlong', name: 'Headlong', power: 9, description: 'A bold horn-first charge.' }], diet: ['food'], habitat: ['meadow'], portrait: 'original-bestiary', sprite: 'original-bestiary', spriteCell: 2,
+    abilities: [{ id: 'vine-lash', name: 'Vine Lash', power: 9, description: 'A forceful lash of thorny vines.' }], spells: [{ id: 'stone-spark', name: 'Stone Spark', power: 7, element: 'earth', minimumLevel: 1, minimumTier: 1, description: 'Limited earth magic calls up a sharp stone.' }], diet: ['food'], habitat: ['meadow'], portrait: 'original-bestiary', sprite: 'original-bestiary', spriteCell: 2,
   },
   {
     id: 'cogling', name: 'Cogling', description: 'A bright-eyed tinkerer with clever hands and a pocket full of useful scraps.', tier: 1, color: '#d6974f', silhouette: 'gear',
     baseStats: { maxHp: 24, attack: 5, defense: 6 }, affinities: [{ id: 'crafting', current: 3, cap: 4 }],
-    abilities: [{ id: 'wrench-toss', name: 'Wrench Toss', power: 7, description: 'A surprisingly accurate improvised attack.' }], diet: ['food'], habitat: ['workshop'], portrait: 'original-bestiary', sprite: 'original-bestiary', spriteCell: 3,
+    abilities: [{ id: 'cog-toss', name: 'Cog Toss', power: 8, description: 'A surprisingly accurate improvised attack.' }], diet: ['food'], habitat: ['workshop'], portrait: 'original-bestiary', sprite: 'original-bestiary', spriteCell: 3,
   },
   {
     id: 'sprigbud', name: 'Sprigbud', description: 'A sunny garden spirit that can coax life from even tired soil.', tier: 1, color: '#71aa61', silhouette: 'leaf',
     baseStats: { maxHp: 26, attack: 5, defense: 5 }, affinities: [{ id: 'harvesting', current: 3, cap: 4 }],
-    abilities: [{ id: 'vine-snap', name: 'Vine Snap', power: 7, description: 'A quick crack of a springy vine.' }], diet: ['herbs'], habitat: ['garden'], portrait: 'original-bestiary', sprite: 'original-bestiary', spriteCell: 1,
+    abilities: [{ id: 'vine-snap', name: 'Vine Snap', power: 7, description: 'A quick crack of a springy vine.' }], spells: [{ id: 'leaf-mend', name: 'Leaf Mend', power: 6, healing: true, element: 'earth', minimumLevel: 1, minimumTier: 1, description: 'Restorative garden magic.' }], diet: ['herbs'], habitat: ['garden'], portrait: 'original-bestiary', sprite: 'original-bestiary', spriteCell: 1,
   },
   {
     id: 'glimmer', name: 'Glimmer', description: 'A gentle wandering sprite whose song makes the ranch feel like home.', tier: 1, color: '#a783c9', silhouette: 'star',
@@ -24,7 +24,7 @@ export const MONSTERS: MonsterSpecies[] = [
   {
     id: 'trailbeak', name: 'Trailbeak', description: 'A curious golden chick with an uncanny sense for safe roads and hidden paths.', tier: 1, color: '#e6be56', silhouette: 'bird',
     baseStats: { maxHp: 27, attack: 6, defense: 4 }, affinities: [{ id: 'exploration', current: 3, cap: 4 }],
-    abilities: [{ id: 'beak-dash', name: 'Beak Dash', power: 8, description: 'A blur of feathers and determined pecking.' }], diet: ['food'], habitat: ['stable'], portrait: 'original-bestiary', sprite: 'original-bestiary', spriteCell: 4,
+    abilities: [{ id: 'beak-dash', name: 'Beak Dash', power: 8, description: 'A blur of feathers and determined pecking.' }], spells: [{ id: 'choco-cure', name: 'Choco Cure', power: 8, healing: true, element: 'light', minimumLevel: 1, minimumTier: 1, description: 'A warm restorative chirp.' }], diet: ['food'], habitat: ['stable'], portrait: 'original-bestiary', sprite: 'original-bestiary', spriteCell: 4,
   },
   {
     id: 'mosswolf', name: 'Mosswolf', description: 'A keen forest hunter with fern-soft fur and a loyal heart.', tier: 1, color: '#5f8f72', silhouette: 'horn',

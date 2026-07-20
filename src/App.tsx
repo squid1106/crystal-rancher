@@ -36,7 +36,16 @@ function Title() {
 }
 
 function Intro() {
+  const [page, setPage] = useState(0)
   const go = useGameStore((state) => state.goToStarters)
+  const pages = [
+    ['THE ROYAL APPRAISAL', 'Your calling is Beast Tamer.', 'The appraisal crystal answers with a rare vocation. You can understand monsters, nurture their talents, and form bonds no ordinary adventurer can.'],
+    ['THE KINGDOM’S REQUEST', 'Help the frontier flourish.', 'The kingdom offers you Briarglen Ranch. Grow restorative crops, train your beasts, welcome new species, and help the settlements beyond the walls grow safely.'],
+    ['YOUR FIRST DUTY', 'No Beast Tamer begins alone.', 'Guildmistress Rowan leads you to four young creatures. One may become your first partner. Choose carefully—but choose with your heart.'],
+  ]
+  const story = pages[page]
+  return <Frame><section className="story-screen"><div className="crest">♦</div><p className="eyebrow">{story[0]}</p><h2>{story[1]}</h2><div className="dialogue-card"><p>{story[2]}</p><p className="speaker">— Guildmistress Rowan</p></div><p className="story-progress">{page + 1} / {pages.length}</p><button className="primary" onClick={() => page < pages.length - 1 ? setPage(page + 1) : go()}>{page < pages.length - 1 ? 'Continue' : 'Meet the young monsters'} <span>→</span></button></section></Frame>
+  /* eslint-disable-next-line no-unreachable */
   return <Frame><section className="story-screen">
     <div className="crest">♢</div><p className="eyebrow">THE FRONTIER GUILD</p>
     <h2>“The land remembers<br />those who care for it.”</h2>
@@ -51,21 +60,30 @@ function StarterSelection() {
   const choose = useGameStore((state) => state.selectStarter)
   const species = getSpecies(selected)!
   const affinity = species.affinities[0]
+  const starterMonsters = MONSTERS.filter((monster) => ['bramblehorn', 'cogling', 'sprigbud', 'trailbeak'].includes(monster.id))
   return <Frame><section className="starter-screen">
     <header><div><p className="eyebrow">YOUR FIRST BOND</p><h2>Who answers your call?</h2></div><p className="step">01 / 03</p></header>
-    <div className="starter-grid">{MONSTERS.map((monster) => <button key={monster.id} className={`starter-card ${selected === monster.id ? 'selected' : ''}`} onClick={() => setSelected(monster.id)}><MonsterPortrait species={monster} small /><span>{monster.name}</span><em>{AFFINITIES[monster.affinities[0].id].icon} {AFFINITIES[monster.affinities[0].id].name} {monster.affinities[0].current}</em></button>)}</div>
+    <div className="starter-grid">{starterMonsters.map((monster) => <button key={monster.id} className={`starter-card ${selected === monster.id ? 'selected' : ''}`} onClick={() => setSelected(monster.id)}><MonsterPortrait species={monster} small /><span>{monster.name}</span><em>{AFFINITIES[monster.affinities[0].id].icon} {AFFINITIES[monster.affinities[0].id].name} {monster.affinities[0].current}</em></button>)}</div>
     <article className="inspect-panel"><MonsterPortrait species={species} /><div className="inspect-copy"><p className="eyebrow">TIER {species.tier} · YOUNGLING</p><h3>{species.name}</h3><p>{species.description}</p><div className="affinity-line"><span>{AFFINITIES[affinity.id].icon}</span><div><small>PRIMARY AFFINITY</small><strong>{AFFINITIES[affinity.id].name} {affinity.current}</strong><small>Natural potential: {affinity.cap}</small></div></div></div><div className="bond-form"><label htmlFor="nickname">Nickname <span>optional</span></label><input id="nickname" value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={18} placeholder={species.name} /><button className="primary" onClick={() => choose(species.id, nickname)}>Form a bond <span>✦</span></button></div></article>
   </section></Frame>
+}
+
+function Journey() {
+  const begin = useGameStore((state) => state.beginTutorialBattle)
+  const save = useGameStore((state) => state.save)!; const monster = save.roster[0]; const species = getSpecies(monster.speciesId)!
+  return <Frame><section className="story-screen journey-screen"><p className="eyebrow">THE ROAD TO BRIARGLEN</p><h2>Your first journey together.</h2><div className="journey-party"><span className="tamer-sprite">♟</span><MonsterPortrait species={species} /><span className="road-line">····················</span><span className="ranch-destination">⌂</span></div><div className="dialogue-card"><p>You and <strong>{monster.nickname ?? species.name}</strong> leave the guild grounds for your new ranch. Rowan’s starter pack contains <strong>3 Medicinal Herbs</strong> and <strong>1 Phoenix Pinion</strong>.</p><p>The brush ahead suddenly shakes. Two territorial creatures block the road.</p></div><button className="primary" onClick={begin}>Stand with your partner <span>→</span></button></section></Frame>
 }
 
 function Battle() {
   const save = useGameStore((state) => state.save)!
   const act = useGameStore((state) => state.battleAction)
   const monster = save.roster[0]; const species = getSpecies(monster.speciesId)!; const battle = save.battle!
-  const actionLabel: Record<BattleAction, string> = { attack: 'Attack', ability: species.abilities[0].name, defend: 'Defend' }
-  return <Frame><section className="battle-screen"><header><div><p className="eyebrow">STARTER CLEARING</p><h2>A friendly trial</h2></div><p className="step">02 / 03</p></header>
-    <div className="battlefield"><div className="combatant ally"><MonsterPortrait species={species} /><h3>{monster.nickname ?? species.name}</h3><div className="hp"><i style={{ width: `${battle.playerHp / species.baseStats.maxHp * 100}%` }} /></div><small>HP {battle.playerHp} / {species.baseStats.maxHp}</small></div><div className="versus">✦</div><div className="combatant rival"><div className="mystery-monster">?</div><h3>Playful Rival {battle.enemyIndex + 1}</h3><div className="hp enemy"><i style={{ width: `${battle.enemyHp / battle.enemyMaxHp * 100}%` }} /></div><small>HP {battle.enemyHp} / {battle.enemyMaxHp}</small></div></div>
-    <div className="battle-ui"><div className="battle-log">{battle.log.slice(-3).map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</div><div className="commands">{(['attack', 'ability', 'defend'] as BattleAction[]).map((action) => <button key={action} onClick={() => act(action)}><span>{action === 'attack' ? '⚔' : action === 'ability' ? '✦' : '◆'}</span>{actionLabel[action]}<small>{action === 'attack' ? 'A steady strike' : action === 'ability' ? species.abilities[0].description : 'Reduce incoming damage'}</small></button>)}</div></div>
+  const spell = species.spells?.find((entry) => species.tier >= entry.minimumTier && monster.level >= entry.minimumLevel)
+  const actionLabel: Record<BattleAction, string> = { attack: 'Attack', skill: 'Skill', magic: 'Magic', item: 'Item', flee: 'Flee' }
+  const actionHelp: Record<BattleAction, string> = { attack: 'A steady physical strike', skill: species.abilities[0].name, magic: spell ? spell.name : 'No magic learned', item: battle.playerHp === 0 ? 'Phoenix Pinion' : `Medicinal Herbs ×${save.resources.herbs}`, flee: 'Attempt to escape' }
+  return <Frame><section className="battle-screen"><header><div><p className="eyebrow">Briar Road · Encounter</p><h2>Protect the road to your ranch</h2></div><p className="step">ENEMY {battle.enemyIndex + 1} / 2</p></header>
+    <div className="battlefield"><div className="combatant ally"><MonsterPortrait species={species} /><h3>{monster.nickname ?? species.name}</h3><div className="hp"><i style={{ width: `${battle.playerHp / species.baseStats.maxHp * 100}%` }} /></div><small>HP {battle.playerHp} / {species.baseStats.maxHp}</small></div><div className="versus">✦</div><div className="combatant rival"><div className="mystery-monster">?</div><h3>Wild Roadbeast {battle.enemyIndex + 1}</h3><div className="hp enemy"><i style={{ width: `${battle.enemyHp / battle.enemyMaxHp * 100}%` }} /></div><small>HP {battle.enemyHp} / {battle.enemyMaxHp}</small></div></div>
+    <div className="battle-ui"><div className="battle-log">{battle.log.slice(-5).map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</div><div className="commands">{(['attack', 'skill', 'magic', 'item', 'flee'] as BattleAction[]).map((action) => <button key={action} onClick={() => act(action)}><span>{action === 'attack' ? '⚔' : action === 'skill' ? '✦' : action === 'magic' ? '◆' : action === 'item' ? '✚' : '➜'}</span>{actionLabel[action]}<small>{actionHelp[action]}</small></button>)}</div></div>
   </section></Frame>
 }
 
@@ -145,6 +163,7 @@ export default function App() {
   if (!save) return <Title />
   if (save.phase === 'intro') return <Intro />
   if (save.phase === 'starter') return <StarterSelection />
+  if (save.phase === 'journey') return <Journey />
   if (save.phase === 'battle') return <Battle />
   if (save.phase === 'expedition-prep') return <ExpeditionPrep />
   if (save.phase === 'expedition') return <Expedition />

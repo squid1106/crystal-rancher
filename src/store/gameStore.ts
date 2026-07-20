@@ -1,11 +1,11 @@
 import { create } from 'zustand'
-import { advanceDay, assignJob, beginExpedition, chooseStarter, closeExpeditionSummary, createNewGame, deserializeSave, expeditionCombatAction, feedMonster, gatherNode, groomMonster, harvestCrop, inspectGarden, LEGACY_SAVE_KEY, moveExpedition, OLDEST_SAVE_KEY, openExpeditionPrep, plantCrop, recruitAdventurer, resolveBattleTurn, returnFromExpedition, SAVE_KEY, selectExpeditionParty, serializeSave, speakWithVisitor, talkToResident, tendCrop, trainMonster, treatMonster } from '../systems/game'
+import { advanceDay, assignJob, beginExpedition, beginTutorialBattle, chooseStarter, closeExpeditionSummary, createNewGame, deserializeSave, expeditionCombatAction, feedMonster, gatherNode, groomMonster, harvestCrop, inspectGarden, LEGACY_SAVE_KEY, moveExpedition, OLDEST_SAVE_KEY, openExpeditionPrep, plantCrop, recruitAdventurer, resolveBattleTurn, returnFromExpedition, SAVE_KEY, selectExpeditionParty, serializeSave, speakWithVisitor, talkToResident, tendCrop, trainMonster, treatMonster } from '../systems/game'
 import type { ExpeditionAction } from '../systems/game'
 import type { BattleAction, GameSave } from '../types'
 
 interface GameStore {
   save: GameSave | null; hasSave: boolean
-  newGame: () => void; continueGame: () => void; goToStarters: () => void; selectStarter: (speciesId: string, nickname?: string) => void
+  newGame: () => void; continueGame: () => void; goToStarters: () => void; selectStarter: (speciesId: string, nickname?: string) => void; beginTutorialBattle: () => void
   battleAction: (action: BattleAction) => void; inspectGarden: () => void; plantHerbs: () => void; tendHerbs: () => void; harvestHerbs: () => void
   assignGarden: (monsterId: string) => void; unassignMonster: (monsterId: string) => void; nextDay: () => void
   speakWithMira: () => void; recruitWhiteMage: () => void; returnToTitle: () => void
@@ -23,6 +23,7 @@ export const useGameStore = create<GameStore>((set) => ({
   continueGame: () => set(() => { const raw = getStored(); return raw ? { save: persist(deserializeSave(raw)), hasSave: true } : { save: persist(createNewGame()), hasSave: true } }),
   goToStarters: () => mutate(set, (save) => ({ ...save, phase: 'starter' })),
   selectStarter: (speciesId, nickname) => mutate(set, (save) => chooseStarter(save, speciesId, nickname)),
+  beginTutorialBattle: () => mutate(set, beginTutorialBattle),
   battleAction: (action) => mutate(set, (save) => resolveBattleTurn(save, action)),
   inspectGarden: () => mutate(set, inspectGarden), plantHerbs: () => mutate(set, (save) => plantCrop(save, 'restorative-herbs')),
   tendHerbs: () => mutate(set, tendCrop), harvestHerbs: () => mutate(set, harvestCrop),

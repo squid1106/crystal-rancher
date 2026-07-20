@@ -1,7 +1,7 @@
 export type AffinityId = 'combat' | 'crafting' | 'harvesting' | 'harmony' | 'exploration' | 'healing'
 export type ResourceId = 'food' | 'wood' | 'stone' | 'herbSeeds' | 'herbs'
-export type GamePhase = 'title' | 'intro' | 'starter' | 'battle' | 'ranch' | 'expedition-prep' | 'expedition' | 'expedition-combat' | 'expedition-summary'
-export type BattleAction = 'attack' | 'ability' | 'defend'
+export type GamePhase = 'title' | 'intro' | 'starter' | 'journey' | 'battle' | 'ranch' | 'expedition-prep' | 'expedition' | 'expedition-combat' | 'expedition-summary'
+export type BattleAction = 'attack' | 'skill' | 'magic' | 'item' | 'flee'
 export type TimePeriod = 'morning' | 'afternoon' | 'evening' | 'spent'
 export type CropStatus = 'empty' | 'planted' | 'growing' | 'needs-tending' | 'ready'
 export type ObjectiveId = 'inspect-garden' | 'plant-herbs' | 'assign-assistant' | 'tend-crop' | 'harvest-crop' | 'reach-healing-five' | 'speak-with-mira' | 'recruit-mira' | 'speak-forest' | 'prepare-expedition' | 'select-companion' | 'enter-forest' | 'gather-resource' | 'win-battle' | 'attempt-tame' | 'return-ranch' | 'care-returning' | 'assign-new-monster' | 'complete'
@@ -19,6 +19,7 @@ export interface MonsterSpecies {
   baseStats: { maxHp: number; attack: number; defense: number }
   affinities: AffinityValue[]
   abilities: { id: string; name: string; power: number; description: string }[]
+  spells?: { id: string; name: string; power: number; healing?: boolean; element: string; minimumLevel: number; minimumTier: number; description: string }[]
   diet: ResourceId[]
   habitat: string[]
   portrait: string
@@ -82,7 +83,6 @@ export interface BattleState {
   enemyHp: number
   enemyMaxHp: number
   enemyIndex: number
-  defending: boolean
   log: string[]
 }
 
